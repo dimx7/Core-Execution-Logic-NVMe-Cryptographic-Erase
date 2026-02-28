@@ -6,7 +6,7 @@ Bash-driven automated data sanitization and resilience pipeline for enterprise N
 An automated bash-based framework designed for Linux (Zorin OS / Ubuntu derivatives) to execute secure data sanitization and disaster recovery protocols. The objective is binary: eliminate data remanence risks during hardware decommissioning and ensure zero data loss during production upgrades.
 
 ## Core Capabilities
-* **Firmware-Level Cryptographic Erase:** Executes `SES=1` (Secure Erase Setting) via `nvme-cli`, permanently destroying cryptographic keys and rendering all data on NVMe drives irrecoverable.
+* **Firmware-Level Cryptographic Erase:** Executes `SES=1` or `SES=2` (Secure Erase Setting) via `nvme-cli`, permanently destroying cryptographic keys and rendering all data on NVMe drives irrecoverable.
 * **Hardware Detection Logic:** Validates the target drive (`/dev/nvmeXnY`) before execution to prevent accidental data destruction on active system drives.
 * **Data Resilience (Backup/Restore):** Parallel bash routines designed to securely clone and restore production states across enterprise environments, minimizing RTO (Recovery Time Objective).
 
