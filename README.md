@@ -1,29 +1,35 @@
 # Core-Execution-Logic-NVMe-Cryptographic-Erase
 Bash-driven automated data sanitization and resilience pipeline for enterprise NVMe/SATA SSDs.
+# Enterprise Asset Decommissioning & Data Resilience Pipeline
 
-## nvme_crypto_erase.sh
+## Overview
+An automated bash-based framework designed for Linux (Zorin OS / Ubuntu derivatives) to execute secure data sanitization and disaster recovery protocols. The objective is binary: eliminate data remanence risks during hardware decommissioning and ensure zero data loss during production upgrades.
 
-Performs a firmware-level **Cryptographic Erase** (SES=1) on a target NVMe namespace using the `nvme-cli` `format` command.
+## Core Capabilities
+* **Firmware-Level Cryptographic Erase:** Executes `SES=1` (Secure Erase Setting) via `nvme-cli`, permanently destroying cryptographic keys and rendering all data on NVMe drives irrecoverable.
+* **Hardware Detection Logic:** Validates the target drive (`/dev/nvmeXnY`) before execution to prevent accidental data destruction on active system drives.
+* **Data Resilience (Backup/Restore):** Parallel bash routines designed to securely clone and restore production states across enterprise environments, minimizing RTO (Recovery Time Objective).
 
-### Prerequisites
+## Operational Impact & Compliance
+By enforcing strict sanitization protocols at the firmware level, this pipeline:
+1. Neutralizes the risk of data exfiltration and ransomware exposure from retired hardware.
+2. Ensures compliance with enterprise data destruction policies and GDPR requirements prior to third-party hardware resale.
 
-- Linux with `nvme-cli` installed (`sudo apt install nvme-cli` or equivalent)
-- `sudo` / root privileges
+## Prerequisites
+* Linux OS (Tested on Zorin OS / Ubuntu)
+* Root (`sudo`) privileges
+* `nvme-cli` installed (`sudo apt install nvme-cli`)
 
-### Usage
+## Execution (Secure Wipe)
+
+> ⚠️ **CRITICAL WARNING:** The secure erase script is destructive. Executing the cryptographic wipe will result in permanent, irrecoverable data loss. Validate your target disk (`lsblk`) before execution.
 
 ```bash
-# Erase the default drive /dev/nvme0n1
-sudo ./nvme_crypto_erase.sh
+# 1. Clone the repository
+git clone [https://github.com/dimx7/secure-wipe-pipeline.git](https://github.com/dimx7/secure-wipe-pipeline.git)
 
-# Erase a specific NVMe namespace
-sudo ./nvme_crypto_erase.sh /dev/nvme1n1
-```
+# 2. Make the script executable
+chmod +x core_nvme_secure_erase.sh
 
-### What it does
-
-1. Validates the target block device exists.
-2. Prints the drive topology via `lsblk` and `nvme list`.
-3. Issues `nvme format <device> --ses=1` to destroy all data and cryptographic keys irretrievably.
-
-> **WARNING:** This operation is **irreversible**. All data on the target drive will be permanently destroyed.
+# 3. Execute with root privileges
+sudo ./core_nvme_secure_erase.sh
