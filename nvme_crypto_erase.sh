@@ -1,14 +1,52 @@
 #!/bin/bash
 # Enterprise Device Decommissioning - Core Wipe Logic
 # Target: NVMe Solid State Drives
-# Execution: Firmware-level Cryptographic Erase (SES=1)
+# Default Execution: Secure Erase (SES=1)
+# Optional Execution: Cryptographic Erase (SES=2) if supported by controller
 
 set -euo pipefail
 
-# 1. Identify Target NVMe Namespace
-TARGET_DRIVE="${1:-/dev/nvme0n1}"
-echo "Validating target drive: $TARGET_DRIVE"
+usage() {
+    cat <<'EOF'
+Usage:
+  nvme-crypto-erase.sh [TARGET_DRIVE] [--ses=1|2]
 
+Examples:
+  nvme-crypto-erase.sh
+  nvme-crypto-erase.sh /dev/nvme0n1
+  nvme-crypto-erase.sh /dev/nvme1n1 --ses=2
+
+Policy:
+  Default mode is --ses=1 (secure erase).
+  --ses=2 (cryptographic erase) is optional and depends on device/controller support.
+EOF
+}
+
+TARGET_DRIVE="/dev/nvme0n1"
+SES_VALUE="1"   # default per policy
+
+# Parse args (order-independent)
+for arg in "$@"; do
+    case "$arg" in
+        --ses=1|--ses=2)
+            SES_VALUE="${arg#--ses=}"
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        /dev/*)
+            TARGET_DRIVE="$arg"
+            ;;
+        *)
+            echo "ERROR: Unknown argument: $arg" >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+echo "Validating target drive: $TARGET_DRIVE"
 if [ ! -b "$TARGET_DRIVE" ]; then
     echo "ERROR: $TARGET_DRIVE is not a valid block device." >&2
     exit 1
@@ -16,19 +54,28 @@ fi
 
 lsblk | grep "$(basename "$TARGET_DRIVE")" || true
 
-# 2. List NVMe devices and topology
 echo ""
 echo "NVMe device topology:"
 sudo nvme list
 
-# 3. Execute Secure Erase (SES=1: Cryptographic Erase)
-# WARNING: This operation destroys all data and cryptographic keys irretrievably.
 echo ""
-echo "Initiating Firmware-Level Secure Erase on $TARGET_DRIVE..."
-if sudo nvme format "$TARGET_DRIVE" --ses=1; then
-    # Expected Output: Success formatting namespace:1
-    echo "Secure erase completed successfully on $TARGET_DRIVE."
+echo "WARNING: This operation destroys all data irretrievably."
+if [ "$SES_VALUE" = "1" ]; then
+    echo "Selected mode: SES=1 (Secure Erase - default)"
 else
-    echo "ERROR: nvme format failed on $TARGET_DRIVE. Verify the device supports cryptographic erase (SES=1) and that you have sufficient privileges." >&2
+    echo "Selected mode: SES=2 (Cryptographic Erase - optional, device support required)"
+fi
+
+echo ""
+echo "Initiating NVMe format on $TARGET_DRIVE with --ses=$SES_VALUE ..."
+if sudo nvme format "$TARGET_DRIVE" --ses="$SES_VALUE"; then
+    echo "Erase completed successfully on $TARGET_DRIVE with --ses=$SES_VALUE."
+else
+    if [ "$SES_VALUE" = "2" ]; then
+        echo "ERROR: SES=2 (Cryptographic Erase) failed or is not supported on $TARGET_DRIVE." >&2
+        echo "Use default secure erase mode (--ses=1) for broad compatibility." >&2
+    else
+        echo "ERROR: SES=1 (Secure Erase) failed on $TARGET_DRIVE." >&2
+    fi
     exit 1
 fi
